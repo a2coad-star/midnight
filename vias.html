@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Vías con novedades - ECU 911</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background: #f4f6f9;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      color: #004085;
+    }
+    #fecha {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #6c757d;
+    }
+    .filtros {
+      text-align: center;
+      margin-bottom: 15px;
+    }
+    select {
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+    }
+    .tabla-container {
+      overflow-x: auto;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      padding: 10px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 600px;
+    }
+    thead {
+      background-color: #007bff;
+      color: white;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+    tr:nth-child(even) {
+      background-color: #f2f2f2;
+    }
+    tr:hover {
+      background-color: #e9ecef;
+    }
+    .estado-cerrada {
+      color: #b02a37;
+      font-weight: bold;
+    }
+    .estado-habilitada {
+      color: #198754;
+      font-weight: bold;
+    }
+    .estado-restringida {
+      color: #fd7e14;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>Revise aquí las vías del país que presentan novedades</h1>
+  <h3 id="fecha"></h3>
+
+  <!-- Selector de estado -->
+  <div class="filtros">
+    <label for="selectorEstado">Filtrar por estado: </label>
+    <select id="selectorEstado">
+      <option value="TODAS">Todas</option>
+    </select>
+  </div>
+
+  <div class="tabla-container">
+    <table id="tablaVias">
+      <thead>
+        <tr>
+          <th>Provincia</th>
+          <th>Vía</th>
+          <th>Estado</th>
+          <th>Observaciones</th>
+          <th>Vía Alterna</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="5" style="text-align:center;">Cargando datos...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+<script>
+  let todasLasVias = []; // guardará los datos originales
+
+  document.addEventListener('DOMContentLoaded', function () {
+    // Fecha y hora
+    document.getElementById('fecha').innerText = 
+      "Última actualización: " + (new Date()).toLocaleString('es-EC');
+
+    // URL del servicio ECU911
+    var serviceUrl = 'https://ecu911.gob.ec/Services/WSVias/ViasWeb.php?estado=A&and:<>:EstadoActual-id=593&order=Provincia-descripcion&limit=200&start=0';
+
+    fetch(serviceUrl)
+      .then(response => response.json())
+      .then(data => {
+        todasLasVias = data.data;
+
+        // Poblar selector con estados únicos
+        const estadosUnicos = [...new Set(todasLasVias.map(v => v.EstadoActual.nombre))];
+        const selector = document.getElementById('selectorEstado');
+        estadosUnicos.forEach(est => {
+          let option = document.createElement('option');
+          option.value = est;
+          option.textContent = est;
+          selector.appendChild(option);
+        });
+
+        // Dibujar tabla inicial
+        renderTabla("TODAS");
+
+        // Escuchar cambios en el selector
+        selector.addEventListener('change', function() {
+          renderTabla(this.value);
+        });
+      })
+      .catch(error => {
+        console.error('Error al cargar las vías:', error);
+        document.querySelector('#tablaVias tbody').innerHTML =
+          '<tr><td colspan="5" style="text-align:center;color:red;">Error al cargar los datos</td></tr>';
+      });
+  });
+
+  function renderTabla(filtroEstado) {
+    let filas = '';
+    let viasFiltradas = todasLasVias;
+
+    if (filtroEstado !== "TODAS") {
+      viasFiltradas = todasLasVias.filter(v => v.EstadoActual.nombre === filtroEstado);
+    }
+
+    if (viasFiltradas.length === 0) {
+      filas = '<tr><td colspan="5" style="text-align:center;">No existen vías en este estado</td></tr>';
+    } else {
+      viasFiltradas.forEach(obj => {
+        let viasAlternas = 'N/A';
+        if (obj.DetalleViaAlterna && obj.DetalleViaAlterna.length > 0) {
+          viasAlternas = obj.DetalleViaAlterna.map(va => va.Via?.descripcion || '').join('<br>');
+        }
+
+        // clase CSS según estado
+        let claseEstado = '';
+        switch(obj.EstadoActual.nombre.toUpperCase()) {
+          case 'CERRADA': claseEstado = 'estado-cerrada'; break;
+          case 'HABILITADA': claseEstado = 'estado-habilitada'; break;
+          case 'RESTRINGIDA': claseEstado = 'estado-restringida'; break;
+        }
+
+        filas += `
+          <tr>
+            <td>${obj.Provincia.descripcion}</td>
+            <td>${obj.descripcion}</td>
+            <td class="${claseEstado}">${obj.EstadoActual.nombre}</td>
+            <td>${obj.observaciones || 'Sin observaciones'}</td>
+            <td>${viasAlternas}</td>
+          </tr>`;
+      });
+    }
+
+    document.querySelector('#tablaVias tbody').innerHTML = filas;
+  }
+</script>
+</body>
+</html>
