@@ -31,6 +31,12 @@
       border: 1px solid #ccc;
       font-size: 14px;
     }
+    #contador {
+      text-align: center;
+      font-weight: bold;
+      margin-bottom: 10px;
+      color: #495057;
+    }
     .tabla-container {
       overflow-x: auto;
       background: white;
@@ -70,6 +76,36 @@
       color: #fd7e14;
       font-weight: bold;
     }
+
+    /* 📱 Estilos responsive para móviles */
+    @media (max-width: 768px) {
+      table, thead, tbody, th, td, tr {
+        display: block;
+      }
+      thead {
+        display: none;
+      }
+      tr {
+        margin-bottom: 15px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 10px;
+        background: #fff;
+      }
+      td {
+        border: none;
+        padding: 6px;
+        position: relative;
+        text-align: left;
+      }
+      td::before {
+        content: attr(data-label);
+        font-weight: bold;
+        display: block;
+        margin-bottom: 4px;
+        color: #004085;
+      }
+    }
   </style>
 </head>
 <body>
@@ -83,6 +119,8 @@
         <option value="TODAS">Todas</option>
     </select>
   </div>
+
+  <p id="contador"></p>
 
   <div class="tabla-container">
     <table id="tablaVias">
@@ -127,8 +165,9 @@
           selector.appendChild(option);
         });
 
-        // Dibujar tabla inicial
-        renderTabla("TODAS");
+        // Mostrar inicialmente solo vías CERRADAS
+        renderTabla("CERRADA");
+        selector.value = "CERRADA";
 
         // Escuchar cambios en el selector
         selector.addEventListener('change', function() {
@@ -169,16 +208,17 @@
 
         filas += `
           <tr>
-            <td>${obj.Provincia.descripcion}</td>
-            <td>${obj.descripcion}</td>
-            <td class="${claseEstado}">${obj.EstadoActual.nombre}</td>
-            <td>${obj.observaciones || 'Sin observaciones'}</td>
-            <td>${viasAlternas}</td>
+            <td data-label="Provincia">${obj.Provincia.descripcion}</td>
+            <td data-label="Vía">${obj.descripcion}</td>
+            <td data-label="Estado" class="${claseEstado}">${obj.EstadoActual.nombre}</td>
+            <td data-label="Observaciones">${obj.observaciones || 'Sin observaciones'}</td>
+            <td data-label="Vía Alterna">${viasAlternas}</td>
           </tr>`;
       });
     }
 
     document.querySelector('#tablaVias tbody').innerHTML = filas;
+    document.getElementById('contador').innerText = `Resultados: ${viasFiltradas.length}`;
   }
 </script>
 </body>
