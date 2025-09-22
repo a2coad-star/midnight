@@ -16,7 +16,7 @@
     h1 {
       text-align: center;
       color: #004085;
-      font-size: 14px;
+      font-size: 16px;
     }
     #fecha {
       text-align: center;
@@ -27,11 +27,12 @@
       text-align: center;
       margin-bottom: 15px;
     }
-    select {
+    select, input[type="checkbox"] {
       padding: 6px 10px;
       border-radius: 6px;
       border: 1px solid #ccc;
       font-size: 14px;
+      margin-left: 5px;
     }
     #contador {
       text-align: center;
@@ -104,7 +105,7 @@
         content: attr(data-label);
         font-weight: bold;
         display: block;
-        margin-bottom: 4px;
+        margin-bottom: 6px;
         color: #004085;
       }
     }
@@ -114,12 +115,16 @@
   <h1>VIAS QUE PRESENTAN NOVEDADES EN ECUADOR</h1>
   <h3 id="fecha"></h3>
 
-  <!-- Selector de estado -->
+  <!-- Filtros -->
   <div class="filtros">
     <label for="selectorEstado">Filtrar por estado: </label>
     <select id="selectorEstado">
         <option value="TODAS">Todas</option>
-    </select>
+    </select><BR><BR>
+
+    <label style="margin-left: 15px;">
+      <input type="checkbox" id="filtroParo">CONFLICTIVIDAD SOCIAL
+    </label>
   </div>
 
   <p id="contador"></p>
@@ -144,22 +149,30 @@
 <script>
   let todasLasVias = []; // guardará los datos originales
 
-  document.addEventListener('DOMContentLoaded', function () {
-    // Fecha y hora
+  // Función para actualizar la fecha cada 30 segundos
+  function actualizarFecha() {
     document.getElementById('fecha').innerText = 
       "Última actualización: " + (new Date()).toLocaleString('es-EC');
+  }
+  setInterval(actualizarFecha, 30000);
+
+  document.addEventListener('DOMContentLoaded', function () {
+    actualizarFecha();
+
+    const selector = document.getElementById('selectorEstado');
+    const filtroParo = document.getElementById('filtroParo');
 
     // URL del servicio ECU911
-    var serviceUrl = 'https://ecu911.gob.ec/Services/WSVias/ViasWeb.php?estado=A&and:<>:EstadoActual-id=593&order=Provincia-descripcion&limit=200&start=0';
+    const serviceUrl = 'https://ecu911.gob.ec/Services/WSVias/ViasWeb.php?estado=A&and:<>:EstadoActual-id=593&order=Provincia-descripcion&limit=200&start=0';
 
     fetch(serviceUrl)
       .then(response => response.json())
       .then(data => {
-        todasLasVias = data.data;
+        todasLasVias = data.data || [];
 
         // Poblar selector con estados únicos
         const estadosUnicos = [...new Set(todasLasVias.map(v => v.EstadoActual.nombre))];
-        const selector = document.getElementById('selectorEstado');
+        selector.innerHTML = '<option value="TODAS">Todas</option>';
         estadosUnicos.forEach(est => {
           let option = document.createElement('option');
           option.value = est;
@@ -168,31 +181,50 @@
         });
 
         // Mostrar inicialmente solo vías CERRADAS
-        renderTabla("CERRADA");
-        selector.value = "CERRADA";
+        if (estadosUnicos.includes('CERRADA')) {
+          renderTabla('CERRADA');
+          selector.value = 'CERRADA';
+        } else {
+          renderTabla('TODAS');
+        }
 
         // Escuchar cambios en el selector
         selector.addEventListener('change', function() {
           renderTabla(this.value);
         });
+
+        // Escuchar cambios en checkbox filtroParo
+        filtroParo.addEventListener('change', function() {
+          renderTabla(selector.value);
+        });
       })
       .catch(error => {
         console.error('Error al cargar las vías:', error);
         document.querySelector('#tablaVias tbody').innerHTML =
-          '<tr><td colspan="5" style="text-align:center;color:red;">Error al cargar los datos</td></tr>';
+          '<tr><td colspan="5" style="text-align:center;color:red;">No se pudieron cargar los datos. Intente recargar la página.</td></tr>';
       });
   });
 
   function renderTabla(filtroEstado) {
+    const filtroParoChecked = document.getElementById('filtroParo').checked;
     let filas = '';
     let viasFiltradas = todasLasVias;
 
-    if (filtroEstado !== "TODAS") {
-      viasFiltradas = todasLasVias.filter(v => v.EstadoActual.nombre === filtroEstado);
+    // Filtrar por estado
+    if (filtroEstado !== 'TODAS') {
+      viasFiltradas = viasFiltradas.filter(v => v.EstadoActual.nombre === filtroEstado);
+    }
+
+    // Filtrar por observaciones si checkbox está activo
+    if (filtroParoChecked) {
+      viasFiltradas = viasFiltradas.filter(v => {
+        const obs = (v.observaciones || '').toLowerCase();
+        return obs.includes('paro') || obs.includes('manifestantes');
+      });
     }
 
     if (viasFiltradas.length === 0) {
-      filas = '<tr><td colspan="5" style="text-align:center;">No existen vías en este estado</td></tr>';
+      filas = '<tr><td colspan="5" style="text-align:center;">No existen vías que cumplan los filtros</td></tr>';
     } else {
       viasFiltradas.forEach(obj => {
         let viasAlternas = 'N/A';
@@ -200,7 +232,6 @@
           viasAlternas = obj.DetalleViaAlterna.map(va => va.Via?.descripcion || '').join('<br>');
         }
 
-        // clase CSS según estado
         let claseEstado = '';
         switch(obj.EstadoActual.nombre.toUpperCase()) {
           case 'CERRADA': claseEstado = 'estado-cerrada'; break;
