@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Vías con novedades - ECU 911</title>
+  <title>VÍAS CON PARO O MANIFESTACIONES - ECU 911</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="refresh" content="1500">
 
@@ -16,23 +16,12 @@
     h1 {
       text-align: center;
       color: #004085;
-      font-size: 16px;
+      font-size: 18px;
     }
     #fecha {
       text-align: center;
       margin-bottom: 20px;
       color: #6c757d;
-    }
-    .filtros {
-      text-align: center;
-      margin-bottom: 15px;
-    }
-    select, input[type="checkbox"] {
-      padding: 6px 10px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-      font-size: 14px;
-      margin-left: 5px;
     }
     #contador {
       text-align: center;
@@ -80,7 +69,7 @@
       font-weight: bold;
     }
 
-    /* 📱 Estilos responsive para móviles */
+    /* 📱 Responsive */
     @media (max-width: 768px) {
       table, thead, tbody, th, td, tr {
         display: block;
@@ -112,20 +101,8 @@
   </style>
 </head>
 <body>
-  <h1>VIAS QUE PRESENTAN NOVEDADES EN ECUADOR</h1>
+  <h1>VÍAS CON OBSERVACIONES: PARO O MANIFESTACIONES</h1>
   <h3 id="fecha"></h3>
-
-  <!-- Filtros -->
-  <div class="filtros">
-    <label for="selectorEstado">Filtrar por estado: </label>
-    <select id="selectorEstado">
-        <option value="TODAS">Todas</option>
-    </select><BR><BR>
-
-    <label style="margin-left: 15px;">
-      <input type="checkbox" id="filtroParo">CONFLICTIVIDAD SOCIAL
-    </label>
-  </div>
 
   <p id="contador"></p>
 
@@ -147,9 +124,9 @@
   </div>
 
 <script>
-  let todasLasVias = []; // guardará los datos originales
+  let todasLasVias = []; 
 
-  // Función para actualizar la fecha cada 30 segundos
+  // Actualizar fecha
   function actualizarFecha() {
     document.getElementById('fecha').innerText = 
       "Última actualización: " + (new Date()).toLocaleString('es-EC');
@@ -159,9 +136,6 @@
   document.addEventListener('DOMContentLoaded', function () {
     actualizarFecha();
 
-    const selector = document.getElementById('selectorEstado');
-    const filtroParo = document.getElementById('filtroParo');
-
     // URL del servicio ECU911
     const serviceUrl = 'https://ecu911.gob.ec/Services/WSVias/ViasWeb.php?estado=A&and:<>:EstadoActual-id=593&order=Provincia-descripcion&limit=200&start=0';
 
@@ -169,34 +143,7 @@
       .then(response => response.json())
       .then(data => {
         todasLasVias = data.data || [];
-
-        // Poblar selector con estados únicos
-        const estadosUnicos = [...new Set(todasLasVias.map(v => v.EstadoActual.nombre))];
-        selector.innerHTML = '<option value="TODAS">Todas</option>';
-        estadosUnicos.forEach(est => {
-          let option = document.createElement('option');
-          option.value = est;
-          option.textContent = est;
-          selector.appendChild(option);
-        });
-
-        // Mostrar inicialmente solo vías CERRADAS
-        if (estadosUnicos.includes('CERRADA')) {
-          renderTabla('CERRADA');
-          selector.value = 'CERRADA';
-        } else {
-          renderTabla('TODAS');
-        }
-
-        // Escuchar cambios en el selector
-        selector.addEventListener('change', function() {
-          renderTabla(this.value);
-        });
-
-        // Escuchar cambios en checkbox filtroParo
-        filtroParo.addEventListener('change', function() {
-          renderTabla(selector.value);
-        });
+        renderTabla();
       })
       .catch(error => {
         console.error('Error al cargar las vías:', error);
@@ -205,26 +152,20 @@
       });
   });
 
-  function renderTabla(filtroEstado) {
-    const filtroParoChecked = document.getElementById('filtroParo').checked;
+  function renderTabla() {
     let filas = '';
-    let viasFiltradas = todasLasVias;
 
-    // Filtrar por estado
-    if (filtroEstado !== 'TODAS') {
-      viasFiltradas = viasFiltradas.filter(v => v.EstadoActual.nombre === filtroEstado);
-    }
+    // 🔎 Palabras clave para filtrar observaciones
+    const palabrasClave = ['paro', 'manifestantes', 'manifestaciones', 'manifestación'];
 
-    // Filtrar por observaciones si checkbox está activo
-    if (filtroParoChecked) {
-      viasFiltradas = viasFiltradas.filter(v => {
-        const obs = (v.observaciones || '').toLowerCase();
-        return obs.includes('paro') || obs.includes('manifestantes');
-      });
-    }
+    // Filtrar vías que contengan esas palabras
+    let viasFiltradas = todasLasVias.filter(v => {
+      const obs = (v.observaciones || '').toLowerCase();
+      return palabrasClave.some(palabra => obs.includes(palabra));
+    });
 
     if (viasFiltradas.length === 0) {
-      filas = '<tr><td colspan="5" style="text-align:center;">No existen vías que cumplan los filtros</td></tr>';
+      filas = '<tr><td colspan="5" style="text-align:center;">No existen vías con observaciones de PARO o MANIFESTACIONES</td></tr>';
     } else {
       viasFiltradas.forEach(obj => {
         let viasAlternas = 'N/A';
